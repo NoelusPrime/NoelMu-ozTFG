@@ -2,7 +2,7 @@ model Car
 
 --- Basic Class Types
 
-class Pi
+class Config
     attributes
         PI : Real derive = (1.0).atan()*4
         RAD_TO_DEG : Real derive = 180 / PI
@@ -22,12 +22,21 @@ class Position
             end
         rotatePoint (tuple1 :Tuple(x : Real, y : Real, z : Real), angle1: Real) : Tuple(x : Real, y : Real, z : Real) = 
             Tuple{
-                x: (tuple1.x) * ((3.1416*angle1/180).cos()) - (tuple1.y) * ((3.1416*angle1/180).sin()),
-                y: (tuple1.x) * ((3.1416*angle1/180).sin()) + (tuple1.y) * ((3.1416*angle1/180).cos()),
+                x: (tuple1.x) * ((config.DEG_TO_RAD*angle1).cos()) - (tuple1.y) * ((angle1*config.DEG_TO_RAD).sin()),
+                y: (tuple1.x) * ((config.DEG_TO_RAD*angle1).sin()) + (tuple1.y) * ((angle1*config.DEG_TO_RAD).cos()),
                 z: (tuple1.z)}
         --rotateX (x : Real,y : Real, angle1: Real) : Real = x * (3.1416*angle1/180).cos() - y * (3.1416*angle1/180).sin()
         --rotateY (x : Real,y : Real, angle1: Real) : Real = x * (3.1416*angle1/180).sin() + y * (3.1416*angle1/180).cos()
+        outOfEnvironment (env : Environment) : Boolean = pos.x < 0 or pos.x > env.size.length or
+                                                        pos.y < 0 or pos.y > env.size.width or
+                                                        pos.z < 0 or pos.z > env.size.height
 end
+
+association positionConfig between
+    Position [*] role position
+    Config [1] role config
+end
+
 
 class Pose < Position
     attributes
@@ -48,28 +57,33 @@ end
 
 class Place < Size,Pose
     attributes
+
+        --a1 : Position derive =
+
         b1 : Tuple(x : Real, y : Real, z : Real) derive = self.pos
-        b2 : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x + (self.length * (angle * 3.1416 /180).cos()),y:self.pos.y + (self.length * (angle * 3.1416 /180).sin()),z:self.pos.z}
-        b3 : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x - (self.width * (angle * 3.1416 /180).sin()),y:self.pos.y + (self.width * (angle * 3.1416 /180).cos()),z:self.pos.z}
-        b4 : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x + (self.length * (angle * 3.1416 /180).cos()) - (self.width * (angle * 3.1416 /180).sin()),y:self.pos.y + (self.length * (angle * 3.1416 /180).sin()) + (self.width * (angle * 3.1416 /180).cos()),z:self.pos.z}
+        b2 : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x + (self.length * (angle * config.DEG_TO_RAD).cos()),y:self.pos.y + (self.length * (angle * config.DEG_TO_RAD).sin()),z:self.pos.z}
+        b3 : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x - (self.width * (angle * config.DEG_TO_RAD).sin()),y:self.pos.y + (self.width * (angle * config.DEG_TO_RAD).cos()),z:self.pos.z}
+        b4 : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x + (self.length * (angle * config.DEG_TO_RAD).cos()) - (self.width * (angle * config.DEG_TO_RAD).sin()),y:self.pos.y + (self.length * (angle * config.DEG_TO_RAD).sin()) + (self.width * (angle * config.DEG_TO_RAD).cos()),z:self.pos.z}
 
         h1 : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x,y:self.pos.y,z:self.pos.z + self.height}
-        h2 : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x + (self.length * (angle * 3.1416 /180).cos()),y:self.pos.y + (self.length * (angle * 3.1416 /180).sin()),z:self.pos.z + self.height}
-        h3 : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x - (self.width * (angle * 3.1416 /180).sin()),y:self.pos.y + (self.width * (angle * 3.1416 /180).cos()),z:self.pos.z + self.height}
-        h4 : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x + (self.length * (angle * 3.1416 /180).cos()) - (self.width * (angle * 3.1416 /180).sin()),y:self.pos.y + (self.length * (angle * 3.1416 /180).sin()) + (self.width * (angle * 3.1416 /180).cos()),z:self.pos.z + self.height}
+        h2 : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x + (self.length * (angle * config.DEG_TO_RAD).cos()),y:self.pos.y + (self.length * (angle * config.DEG_TO_RAD).sin()),z:self.pos.z + self.height}
+        h3 : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x - (self.width * (angle * config.DEG_TO_RAD).sin()),y:self.pos.y + (self.width * (angle * config.DEG_TO_RAD).cos()),z:self.pos.z + self.height}
+        h4 : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x + (self.length * (angle * config.DEG_TO_RAD).cos()) - (self.width * (angle * config.DEG_TO_RAD).sin()),y:self.pos.y + (self.length * (angle * config.DEG_TO_RAD).sin()) + (self.width * (angle * config.DEG_TO_RAD).cos()),z:self.pos.z + self.height}
+
+        center : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x + (self.length * (angle * config.DEG_TO_RAD).cos()/2) - (self.width * (angle * config.DEG_TO_RAD).sin()/2),y:self.pos.y + (self.length * (angle * config.DEG_TO_RAD).sin()/2) + (self.width * (angle * config.DEG_TO_RAD).cos()/2),z:self.pos.z}
     operations
 
-        minimumX (place1: Place, angle1 : Real) : Real = (((((rotatePoint(Tuple{x:place1.b1.x,y:place1.b1.y,z:place1.b1.z},angle1)).x).min(rotatePoint(Tuple{x:place1.b2.x,y:place1.b2.y,z:place1.b2.z},angle1).x)).min(rotatePoint(Tuple{x:place1.b3.x,y:place1.b3.y,z:place1.b3.z},angle1).x)).min(rotatePoint(Tuple{x:place1.b4.x,y:place1.b4.y,z:place1.b4.z},angle1).x))
+        minimumX (angle1 : Real) : Real = (((((rotatePoint(Tuple{x:b1.x,y:b1.y,z:b1.z},angle1)).x).min(rotatePoint(Tuple{x:b2.x,y:b2.y,z:b2.z},angle1).x)).min(rotatePoint(Tuple{x:b3.x,y:b3.y,z:b3.z},angle1).x)).min(rotatePoint(Tuple{x:b4.x,y:b4.y,z:b4.z},angle1).x))
 
-        maximumX (place1: Place, angle1 : Real) : Real = (((((rotatePoint(Tuple{x:place1.b1.x,y:place1.b1.y,z:place1.b1.z},angle1)).x).max(rotatePoint(Tuple{x:place1.b2.x,y:place1.b2.y,z:place1.b2.z},angle1).x)).max(rotatePoint(Tuple{x:place1.b3.x,y:place1.b3.y,z:place1.b3.z},angle1).x)).max(rotatePoint(Tuple{x:place1.b4.x,y:place1.b4.y,z:place1.b4.z},angle1).x))
+        maximumX (angle1 : Real) : Real = (((((rotatePoint(Tuple{x:b1.x,y:b1.y,z:b1.z},angle1)).x).max(rotatePoint(Tuple{x:b2.x,y:b2.y,z:b2.z},angle1).x)).max(rotatePoint(Tuple{x:b3.x,y:b3.y,z:b3.z},angle1).x)).max(rotatePoint(Tuple{x:b4.x,y:b4.y,z:b4.z},angle1).x))
 
-        minimumY (place1: Place, angle1 : Real) : Real = (((((rotatePoint(Tuple{x:place1.b1.x,y:place1.b1.y,z:place1.b1.z},angle1)).y).min(rotatePoint(Tuple{x:place1.b2.x,y:place1.b2.y,z:place1.b2.z},angle1).y)).min(rotatePoint(Tuple{x:place1.b3.x,y:place1.b3.y,z:place1.b3.z},angle1).y)).min(rotatePoint(Tuple{x:place1.b4.x,y:place1.b4.y,z:place1.b4.z},angle1).y))
+        minimumY (angle1 : Real) : Real = (((((rotatePoint(Tuple{x:b1.x,y:b1.y,z:b1.z},angle1)).y).min(rotatePoint(Tuple{x:b2.x,y:b2.y,z:b2.z},angle1).y)).min(rotatePoint(Tuple{x:b3.x,y:b3.y,z:b3.z},angle1).y)).min(rotatePoint(Tuple{x:b4.x,y:b4.y,z:b4.z},angle1).y))
 
-        maximumY (place1: Place, angle1 : Real) : Real = (((((rotatePoint(Tuple{x:place1.b1.x,y:place1.b1.y,z:place1.b1.z},angle1)).y).max(rotatePoint(Tuple{x:place1.b2.x,y:place1.b2.y,z:place1.b2.z},angle1).y)).max(rotatePoint(Tuple{x:place1.b3.x,y:place1.b3.y,z:place1.b3.z},angle1).y)).max(rotatePoint(Tuple{x:place1.b4.x,y:place1.b4.y,z:place1.b4.z},angle1).y))
+        maximumY (angle1 : Real) : Real = (((((rotatePoint(Tuple{x:b1.x,y:b1.y,z:b1.z},angle1)).y).max(rotatePoint(Tuple{x:b2.x,y:b2.y,z:b2.z},angle1).y)).max(rotatePoint(Tuple{x:b3.x,y:b3.y,z:b3.z},angle1).y)).max(rotatePoint(Tuple{x:b4.x,y:b4.y,z:b4.z},angle1).y))
 
-        collidingX (place1 : Place, angle : Real) : Boolean = (minimumX (self,angle) <= maximumX (place1,angle)) and (maximumX (self,angle) >= minimumX (place1,angle))
+        collidingX (place1 : Place, angle : Real) : Boolean = (self.minimumX (angle) <= place1.maximumX (angle)) and (self.maximumX (angle) >= place1.minimumX (angle))
 
-        collidingY (place1 : Place, angle : Real) : Boolean = (minimumY (self,angle) <= maximumY (place1,angle)) and (maximumY (self,angle) >= minimumY (place1,angle))     
+        collidingY (place1 : Place, angle : Real) : Boolean = (self.minimumY (angle) <= place1.maximumY (angle)) and (self.maximumY (angle) >= place1.minimumY (angle))     
 
         collidingAxis (place1: Place, angle1: Real) : Boolean = ((collidingX (place1,-self.angle  )) and (collidingY (place1,-self.angle))) 
                                                                 and 
@@ -82,7 +96,7 @@ class Place < Size,Pose
         -- Este método comprueba si el place actual está interseccionando en algún punto con el objeto place1 que se le pasa por parámetro
         
         --Cuidado con el sentido de los ángulos y con el sentido de girar los places con respecto al centro de coordenadas
-
+        --outOfEnvironment () : Boolean = true
 end
 
 --- Car
@@ -91,6 +105,8 @@ class Car < ActiveObject
     attributes
         place : Place
         action : Action
+        isMoving : Boolean
+        isRotating : Boolean
     operations
         init()
             begin
@@ -175,33 +191,68 @@ class Motor
         speed : Real init: 10
     operations
 
-        canGoForward() : Boolean
-        begin
-            declare cocheFantasma : Car, motorFantasma : Motor, placeFantasma : Place;
-            cocheFantasma := self.car;
-            motorFantasma := self;
-            placeFantasma := self.car.place;
-            motorFantasma.forward();
+        --canGoForward() : Boolean
+        --begin
+          --  declare cocheFantasma : Car, motorFantasma : Motor, placeFantasma : Place;
+           -- cocheFantasma := self.car;
+            --motorFantasma := self;
+            --placeFantasma := self.car.place;
+            --motorFantasma.forward();
 
             --Comrpobar si cocheFantasma intersecciona con algun objeto
             --Devolver true si no intersecciona con nada
 
-        end
+        --end
         -- La idea es crear un cochecito fantasma en la misma posicion que el original, llamar al metodo forward del cochecito fantasma y al moverse, comprobar si está superpuesto con algun otro objeto.
         -- Si es así, la función debería devolver un falso (no puede ir hacia delante el coche original), y en caso contrario, devolver true. Hay que destruir el coche fantasma antes de terminar dicha operacion.
 
         forward()
             begin
+                declare previousPos : Tuple(x:Real,y:Real,z:Real);
+                previousPos := self.car.place.pos;
                 self.car.place.move(
-                                                    self.speed*self.car.clock.tickResolution*(self.car.place.angle * 3.1415926535 / 180).cos(),
-                                                    self.speed*self.car.clock.tickResolution*(self.car.place.angle * 3.1415926535 / 180).sin(),
+                                                    self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.config.DEG_TO_RAD).cos(),
+                                                    self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.config.DEG_TO_RAD).sin(),
                                                     0    
-                                    )
+                                    );
+                if (ElementPart.allInstances->select(p | self.car.place.isIntersectingWith(p.place))->isEmpty() = false) then
+                    self.car.place.pos := previousPos;
+                end
             end
+
+        backward()
+            begin
+                declare previousPos : Tuple(x:Real,y:Real,z:Real);
+                previousPos := self.car.place.pos;
+                self.car.place.move(
+                                                    -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.config.DEG_TO_RAD).cos(),
+                                                    -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.config.DEG_TO_RAD).sin(),
+                                                    0    
+                                    );
+                if (ElementPart.allInstances->select(p | self.car.place.isIntersectingWith(p.place))->isEmpty() = false) then
+                    self.car.place.pos := previousPos;
+                end
+            end
+
         rotate(angle: Real)
             begin
-                self.car.place.rotate(angle);
+                --self.car.place.rotate(angle);
+
+                --Hay que rotar la esquina principal con respecto al centro del place
             end
+        rotateClockwise()
+            begin
+                self.car.place.angle := self.car.place.angle - self.speed*self.car.clock.tickResolution
+            end
+        rotateAntiClockwise()
+            begin
+                self.car.place.angle := self.car.place.angle + self.speed*self.car.clock.tickResolution
+            end
+end
+
+association motorConfig between
+    Motor [*] role motor
+    Config [1] role config
 end
 
 composition CarMotor between

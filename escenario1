@@ -1,0 +1,6 @@
+!clock1 := new Clock()
+!motor1 := new Motor()
+!car1 := new Car()
+!environment := new Environment()
+!sizeEnvironment := new Size()
+!environment.size := sizeEnvironment
