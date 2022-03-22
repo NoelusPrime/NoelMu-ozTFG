@@ -7,6 +7,7 @@ class Config
         PI : Real derive = (1.0).atan()*4
         RAD_TO_DEG : Real derive = 180 / PI
         DEG_TO_RAD : Real derive = PI / 180
+        LINEAR_PRECISSION : Real derive = 0.00000001
 end
 
 enum Action {Forward, Rotate}
@@ -20,13 +21,11 @@ class Position
             begin
                 self.pos:=Tuple{x:self.pos.x+dx, y:self.pos.y+dy,z:self.pos.z+dz};
             end
-        rotatePoint (tuple1 :Tuple(x : Real, y : Real, z : Real), angle1: Real) : Tuple(x : Real, y : Real, z : Real) = 
+        rotatePoint (tuple1 :Tuple(x : Real, y : Real, z : Real), angle1: Real, posX: Real, posY: Real) : Tuple(x : Real, y : Real, z : Real) = 
             Tuple{
-                x: (tuple1.x) * ((config.DEG_TO_RAD*angle1).cos()) - (tuple1.y) * ((angle1*config.DEG_TO_RAD).sin()),
-                y: (tuple1.x) * ((config.DEG_TO_RAD*angle1).sin()) + (tuple1.y) * ((angle1*config.DEG_TO_RAD).cos()),
+                x: (tuple1.x - posX) * ((config.DEG_TO_RAD*angle1).cos()) - (tuple1.y - posY) * ((angle1*config.DEG_TO_RAD).sin()) + posX,
+                y: (tuple1.x - posX) * ((config.DEG_TO_RAD*angle1).sin()) + (tuple1.y - posY) * ((angle1*config.DEG_TO_RAD).cos()) + posY,
                 z: (tuple1.z)}
-        --rotateX (x : Real,y : Real, angle1: Real) : Real = x * (3.1416*angle1/180).cos() - y * (3.1416*angle1/180).sin()
-        --rotateY (x : Real,y : Real, angle1: Real) : Real = x * (3.1416*angle1/180).sin() + y * (3.1416*angle1/180).cos()
         outOfEnvironment (env : Environment) : Boolean = pos.x < 0 or pos.x > env.size.length or
                                                         pos.y < 0 or pos.y > env.size.width or
                                                         pos.z < 0 or pos.z > env.size.height
@@ -73,13 +72,13 @@ class Place < Size,Pose
         center : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x + (self.length * (angle * config.DEG_TO_RAD).cos()/2) - (self.width * (angle * config.DEG_TO_RAD).sin()/2),y:self.pos.y + (self.length * (angle * config.DEG_TO_RAD).sin()/2) + (self.width * (angle * config.DEG_TO_RAD).cos()/2),z:self.pos.z}
     operations
 
-        minimumX (angle1 : Real) : Real = (((((rotatePoint(Tuple{x:b1.x,y:b1.y,z:b1.z},angle1)).x).min(rotatePoint(Tuple{x:b2.x,y:b2.y,z:b2.z},angle1).x)).min(rotatePoint(Tuple{x:b3.x,y:b3.y,z:b3.z},angle1).x)).min(rotatePoint(Tuple{x:b4.x,y:b4.y,z:b4.z},angle1).x))
+        minimumX (angle1 : Real) : Real = (((((rotatePoint(Tuple{x:b1.x,y:b1.y,z:b1.z},angle1,0,0)).x).min(rotatePoint(Tuple{x:b2.x,y:b2.y,z:b2.z},angle1,0,0).x)).min(rotatePoint(Tuple{x:b3.x,y:b3.y,z:b3.z},angle1,0,0).x)).min(rotatePoint(Tuple{x:b4.x,y:b4.y,z:b4.z},angle1,0,0).x))
 
-        maximumX (angle1 : Real) : Real = (((((rotatePoint(Tuple{x:b1.x,y:b1.y,z:b1.z},angle1)).x).max(rotatePoint(Tuple{x:b2.x,y:b2.y,z:b2.z},angle1).x)).max(rotatePoint(Tuple{x:b3.x,y:b3.y,z:b3.z},angle1).x)).max(rotatePoint(Tuple{x:b4.x,y:b4.y,z:b4.z},angle1).x))
+        maximumX (angle1 : Real) : Real = (((((rotatePoint(Tuple{x:b1.x,y:b1.y,z:b1.z},angle1,0,0)).x).max(rotatePoint(Tuple{x:b2.x,y:b2.y,z:b2.z},angle1,0,0).x)).max(rotatePoint(Tuple{x:b3.x,y:b3.y,z:b3.z},angle1,0,0).x)).max(rotatePoint(Tuple{x:b4.x,y:b4.y,z:b4.z},angle1,0,0).x))
 
-        minimumY (angle1 : Real) : Real = (((((rotatePoint(Tuple{x:b1.x,y:b1.y,z:b1.z},angle1)).y).min(rotatePoint(Tuple{x:b2.x,y:b2.y,z:b2.z},angle1).y)).min(rotatePoint(Tuple{x:b3.x,y:b3.y,z:b3.z},angle1).y)).min(rotatePoint(Tuple{x:b4.x,y:b4.y,z:b4.z},angle1).y))
+        minimumY (angle1 : Real) : Real = (((((rotatePoint(Tuple{x:b1.x,y:b1.y,z:b1.z},angle1,0,0)).y).min(rotatePoint(Tuple{x:b2.x,y:b2.y,z:b2.z},angle1,0,0).y)).min(rotatePoint(Tuple{x:b3.x,y:b3.y,z:b3.z},angle1,0,0).y)).min(rotatePoint(Tuple{x:b4.x,y:b4.y,z:b4.z},angle1,0,0).y))
 
-        maximumY (angle1 : Real) : Real = (((((rotatePoint(Tuple{x:b1.x,y:b1.y,z:b1.z},angle1)).y).max(rotatePoint(Tuple{x:b2.x,y:b2.y,z:b2.z},angle1).y)).max(rotatePoint(Tuple{x:b3.x,y:b3.y,z:b3.z},angle1).y)).max(rotatePoint(Tuple{x:b4.x,y:b4.y,z:b4.z},angle1).y))
+        maximumY (angle1 : Real) : Real = (((((rotatePoint(Tuple{x:b1.x,y:b1.y,z:b1.z},angle1,0,0)).y).max(rotatePoint(Tuple{x:b2.x,y:b2.y,z:b2.z},angle1,0,0).y)).max(rotatePoint(Tuple{x:b3.x,y:b3.y,z:b3.z},angle1,0,0).y)).max(rotatePoint(Tuple{x:b4.x,y:b4.y,z:b4.z},angle1,0,0).y))
 
         collidingX (place1 : Place, angle : Real) : Boolean = (self.minimumX (angle) <= place1.maximumX (angle)) and (self.maximumX (angle) >= place1.minimumX (angle))
 
@@ -97,6 +96,14 @@ class Place < Size,Pose
         
         --Cuidado con el sentido de los ángulos y con el sentido de girar los places con respecto al centro de coordenadas
         --outOfEnvironment () : Boolean = true
+
+        rotatePlace(angle1: Real)
+            begin
+                self.pos := self.rotatePoint(self.pos,angle1,self.center.x,self.center.y);
+                self.angle := self.angle + angle1;
+
+                --Hay que rotar la esquina principal con respecto al centro del place
+            end
 end
 
 --- Car
@@ -110,16 +117,22 @@ class Car < ActiveObject
     operations
         init()
             begin
-                declare place: Place, pose:Pose, position:Position, action: Action, motor: Motor, behavior: TestBehavior;
+                declare place: Place, motor: Motor, behavior: TestBehavior, clock: Clock;
 
                 place := new Place();
-                pose := new Pose();
-                position := new Position();
+                clock := new Clock();
+
                 self.place := place;
+                place.length := 5;
+                place.width := 10;
+                place.height := 5;
+                place.pos := Tuple{x=10,y=10,z=0};
+                place.angle := 0;
 
                 behavior := new TestBehavior();
                 
                 insert (self,behavior) into CarBehaviors;
+                insert (clock,self) into Timing;
 
                 motor := new Motor();
                 insert(self, motor) into CarMotor;
@@ -234,19 +247,14 @@ class Motor
                 end
             end
 
-        rotate(angle: Real)
-            begin
-                --self.car.place.rotate(angle);
-
-                --Hay que rotar la esquina principal con respecto al centro del place
-            end
+        
         rotateClockwise()
             begin
-                self.car.place.angle := self.car.place.angle - self.speed*self.car.clock.tickResolution
+                self.car.place.angle := self.car.place.angle - self.speed*self.car.clock.tickResolution;
             end
         rotateAntiClockwise()
             begin
-                self.car.place.angle := self.car.place.angle + self.speed*self.car.clock.tickResolution
+                self.car.place.angle := self.car.place.angle + self.speed*self.car.clock.tickResolution;
             end
 end
 

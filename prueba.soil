@@ -1,0 +1,6 @@
+!car := new Car
+!clock := new Clock
+!car.init()
+!insert (clock,car) into Timing
+
+

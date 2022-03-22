@@ -1,0 +1,38 @@
+
+--Config
+
+!config := new Config()
+
+--Environment
+
+!environment := new Environment()
+!environment.size := new Size()
+
+!environment.size.length := 100
+!environment.size.width := 50
+!environment.size.height := 20
+
+!box1 := new Box()
+!elementPartBox1a := new ElementPart()
+!elementPartBox1a.place := new Place()
+!elementPartBox1a.place.length := 5
+!elementPartBox1a.place.width := 5
+!elementPartBox1a.place.height := 5
+!elementPartBox1a.place.angle := 0
+!elementPartBox1a.place.pos := Tuple{x=40,y=20,z=0}
+!elementPartBox1a.place.config := config
+
+--Car
+
+--!clock1 := new Clock()
+--!motor1 := new Motor()
+!car1 := new Car()
+--!behaviour1 := new TestBehaviour()
+
+!car1.init()
+!car1.place.config := config
+
+--!insert (car1,behaviour1) into CarBehaviors
+--!insert (car1,motor1) into CarMotor
+--!insert (clock1,car1) into Timing
+
