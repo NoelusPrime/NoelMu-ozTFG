@@ -2,12 +2,15 @@ model Car
 
 --- Basic Class Types
 
+-- Las unidades de distancia están en centímetros
+
 class Config
     attributes
         PI : Real derive = (1.0).atan()*4
         RAD_TO_DEG : Real derive = 180 / PI
         DEG_TO_RAD : Real derive = PI / 180
         LINEAR_PRECISSION : Real derive = 0.00000001
+        ANGULAR_PRECISSION : Real derive = 0.00000001
 end
 
 enum Action {Forward, Rotate}
@@ -123,8 +126,8 @@ class Car < ActiveObject
                 clock := new Clock();
 
                 self.place := place;
-                place.length := 5;
-                place.width := 10;
+                place.length := 19;
+                place.width := 16.5;
                 place.height := 5;
                 place.pos := Tuple{x=10,y=10,z=0};
                 place.angle := 0;
@@ -196,28 +199,13 @@ end
 
 composition TouchSensorConnection between
     Car [1] role car
-    TouchSensor [0..2] role touch
+    TouchSensor [0..3] role touch
 end
 
 class Motor 
     attributes
         speed : Real init: 10
     operations
-
-        --canGoForward() : Boolean
-        --begin
-          --  declare cocheFantasma : Car, motorFantasma : Motor, placeFantasma : Place;
-           -- cocheFantasma := self.car;
-            --motorFantasma := self;
-            --placeFantasma := self.car.place;
-            --motorFantasma.forward();
-
-            --Comrpobar si cocheFantasma intersecciona con algun objeto
-            --Devolver true si no intersecciona con nada
-
-        --end
-        -- La idea es crear un cochecito fantasma en la misma posicion que el original, llamar al metodo forward del cochecito fantasma y al moverse, comprobar si está superpuesto con algun otro objeto.
-        -- Si es así, la función debería devolver un falso (no puede ir hacia delante el coche original), y en caso contrario, devolver true. Hay que destruir el coche fantasma antes de terminar dicha operacion.
 
         forward()
             begin
@@ -273,6 +261,10 @@ end
 class Environment
     attributes
         size : Size
+    operations
+        isWithin (tuple1 : Tuple(x:Real,y:Real,z:Real)) : Boolean = tuple1.x >= 0 and tuple1.x <= size.length
+                                                                and tuple1.y >= 0 and tuple1.y <= size.width
+                                                                and tuple1.z >= 0 and tuple1.z <= size.height
 end
 
 abstract class EnvironmentElement
