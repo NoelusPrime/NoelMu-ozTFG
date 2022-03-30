@@ -1,0 +1,19 @@
+!place1 := new Place()
+!place2 := new Place()
+
+!place1.angle := 0
+!place2.angle := 0
+
+!place1.length := 3
+!place2.length := 2
+
+!place1.width := 2
+!place2.width := 2
+
+!place1.height := 2
+!place2.height := 2
+
+!place1.pos := Tuple{x:2,y:2,z:20}
+!place2.pos := Tuple{x:0,y:0,z:100}
+
+?place1.isIntersectingWith(place2)

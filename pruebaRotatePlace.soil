@@ -1,8 +1,0 @@
-!place1 := new Place()
-!config1 := new Config()
-!insert (place1,config1) into positionConfig
-!place1.angle := 0
-!place1.pos := Tuple{x=0,y=0,z=0}
-!place1.length := 10
-!place1.width := 10
-!place1.height := 10
