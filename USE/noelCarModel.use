@@ -60,8 +60,10 @@ end
 class Place < Size,Pose
     attributes
 
-        --a1 : Position derive =
+        --Los atributos b1,b2,b3 y b4 son las 4 esquinas inferiores del place
+        --Los atributos h1,h2,h3 y h4 son las 4 esquinas superiores del place
 
+        --Hay que tener cuidado con las esquinas, si no se asocia un objeto config a un place, no se podrán calcular todas las coordenadas y muchas de ellas devolveran null
         b1 : Tuple(x : Real, y : Real, z : Real) derive = self.pos
         b2 : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x + (self.length * (angle * config.DEG_TO_RAD).cos()),y:self.pos.y + (self.length * (angle * config.DEG_TO_RAD).sin()),z:self.pos.z}
         b3 : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x - (self.width * (angle * config.DEG_TO_RAD).sin()),y:self.pos.y + (self.width * (angle * config.DEG_TO_RAD).cos()),z:self.pos.z}
@@ -75,37 +77,42 @@ class Place < Size,Pose
         center : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x + (self.length * (angle * config.DEG_TO_RAD).cos()/2) - (self.width * (angle * config.DEG_TO_RAD).sin()/2),y:self.pos.y + (self.length * (angle * config.DEG_TO_RAD).sin()/2) + (self.width * (angle * config.DEG_TO_RAD).cos()/2),z:self.pos.z}
     operations
 
+        -- Devuelve la coordenada X menor de todas las esquinas cuando el objeto ha sido rotado "angle" grados
         minimumX (angle1 : Real) : Real = (((((rotatePoint(Tuple{x:b1.x,y:b1.y,z:b1.z},angle1,0,0)).x).min(rotatePoint(Tuple{x:b2.x,y:b2.y,z:b2.z},angle1,0,0).x)).min(rotatePoint(Tuple{x:b3.x,y:b3.y,z:b3.z},angle1,0,0).x)).min(rotatePoint(Tuple{x:b4.x,y:b4.y,z:b4.z},angle1,0,0).x))
 
+        -- Devuelve la coordenada X mayor de todas las esquinas cuando el objeto ha sido rotado "angle" grados
         maximumX (angle1 : Real) : Real = (((((rotatePoint(Tuple{x:b1.x,y:b1.y,z:b1.z},angle1,0,0)).x).max(rotatePoint(Tuple{x:b2.x,y:b2.y,z:b2.z},angle1,0,0).x)).max(rotatePoint(Tuple{x:b3.x,y:b3.y,z:b3.z},angle1,0,0).x)).max(rotatePoint(Tuple{x:b4.x,y:b4.y,z:b4.z},angle1,0,0).x))
 
+        -- Devuelve la coordenada Y menor de todas las esquinas cuando el objeto ha sido rotado "angle" grados
         minimumY (angle1 : Real) : Real = (((((rotatePoint(Tuple{x:b1.x,y:b1.y,z:b1.z},angle1,0,0)).y).min(rotatePoint(Tuple{x:b2.x,y:b2.y,z:b2.z},angle1,0,0).y)).min(rotatePoint(Tuple{x:b3.x,y:b3.y,z:b3.z},angle1,0,0).y)).min(rotatePoint(Tuple{x:b4.x,y:b4.y,z:b4.z},angle1,0,0).y))
 
+        -- Devuelve la coordenada Y mayor de todas las esquinas cuando el objeto ha sido rotado "angle" grados
         maximumY (angle1 : Real) : Real = (((((rotatePoint(Tuple{x:b1.x,y:b1.y,z:b1.z},angle1,0,0)).y).max(rotatePoint(Tuple{x:b2.x,y:b2.y,z:b2.z},angle1,0,0).y)).max(rotatePoint(Tuple{x:b3.x,y:b3.y,z:b3.z},angle1,0,0).y)).max(rotatePoint(Tuple{x:b4.x,y:b4.y,z:b4.z},angle1,0,0).y))
 
+        -- Comprueba  si en el eje X los objetos tienen puntos en común, rotados "angle" grados
         collidingX (place1 : Place, angle : Real) : Boolean = (self.minimumX (angle) <= place1.maximumX (angle)) and (self.maximumX (angle) >= place1.minimumX (angle))
 
+        -- Comprueba  si en el eje Y los objetos tienen puntos en común, rotados "angle" grados
         collidingY (place1 : Place, angle : Real) : Boolean = (self.minimumY (angle) <= place1.maximumY (angle)) and (self.maximumY (angle) >= place1.minimumY (angle))     
 
+
+        -- Este método debería comprobar si rotados el place actual y el "place1" parámetro "angle1" ángulos con respecto al origen de coordenadas, existe algún eje (ya sea x o y)
+        -- en el cual los 2 se superpongan
         collidingAxis (place1: Place, angle1: Real) : Boolean = ((collidingX (place1,-self.angle  )) and (collidingY (place1,-self.angle))) 
                                                                 and 
                                                                 ((collidingX (place1,-place1.angle)) and (collidingY (place1,-place1.angle)))
                                                                 
-        -- Este método debería comprobar si rotados el place actual y el "place1" parámetro "angle1" ángulos con respecto al origen de coordenadas, existe algún eje (ya sea x o y)
-        -- en el cual los 2 se superpongan
 
-        isIntersectingWith (place1: Place) : Boolean = (collidingAxis (place1,self.angle)) and (collidingAxis (place1,place1.angle))
+
         -- Este método comprueba si el place actual está interseccionando en algún punto con el objeto place1 que se le pasa por parámetro
+        isIntersectingWith (place1: Place) : Boolean = (collidingAxis (place1,self.angle)) and (collidingAxis (place1,place1.angle))
         
-        --Cuidado con el sentido de los ángulos y con el sentido de girar los places con respecto al centro de coordenadas
-        --outOfEnvironment () : Boolean = true
-
+        
+        -- Se rota un place tantos grados como se le pase por parámetro con respecto al centro
         rotatePlace(angle1: Real)
             begin
                 self.pos := self.rotatePoint(self.pos,angle1,self.center.x,self.center.y);
                 self.angle := self.angle + angle1;
-
-                --Hay que rotar la esquina principal con respecto al centro del place
             end
 end
 
@@ -313,14 +320,47 @@ class Clock
     operations
         tick()
             begin
+                    declare snapshot : Snapshot;
                     for object in self.activeObject do
                         object.action();
                     end;
                     self.now := self.now + self.tickResolution;
+                    snapshot := new Snapshot();
+                    snapshot.carCenter := Car.allInstances()->asOrderedSet()->first().place.center;
+                    snapshot.carAngle := Car.allInstances()->asOrderedSet()->first().place.angle;
+                    snapshot.carLength := Car.allInstances()->asOrderedSet()->first().place.length;
+                    snapshot.carWidth := Car.allInstances()->asOrderedSet()->first().place.width;
+                    snapshot.carHeight := Car.allInstances()->asOrderedSet()->first().place.height;
+                    snapshot.environment := Environment.allInstances()->asOrderedSet()->first();
+                    snapshot.time := self.now;
             end
     end
 
 association Timing between
     Clock [1] role clock
     ActiveObject [*] role activeObject ordered
+end
+
+-- Snapshots
+
+class Snapshot
+    attributes
+        carCenter : Tuple(x:Real,y:Real,z:Real)
+        carAngle : Real
+        carLength : Real
+        carWidth : Real
+        carHeight : Real
+        environment : Environment
+        time : Integer
+    operations
+        init(car : Car, environment : Environment, time : Integer)
+            begin
+                self.carCenter := car.place.center;
+                self.carAngle := car.place.angle;
+                self.carLength := car.place.length;
+                self.carWidth := car.place.width;
+                self.carHeight := car.place.height;
+                self.environment := environment;
+                self.time := time;
+            end
 end
