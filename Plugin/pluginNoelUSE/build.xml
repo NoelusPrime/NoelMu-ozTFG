@@ -37,14 +37,22 @@
 
 	<target name="compile" depends="setversion">
 		<mkdir dir="build" />
+		<copy todir="build/resources">
+			<fileset dir="resources" />
+		</copy>
 		<javac destdir="build" source="${compiler}" target="${compiler}" debug="${javac.debug}" classpathref="classpath" includeantruntime="false">
 			<src path="src" />
 		</javac>
 	</target>
 
 	<target name="jar" depends="compile">
-		<jar destfile="dist/${filename}" basedir="build">
+		<jar destfile="dist/${filename}" basedir="build" manifest="META-INF/MANIFEST.MF">
 			<fileset dir="." includes="useplugin.xml" />
+			<zipfileset src="lib/commons-pool2-2.9.0.jar" />
+			<zipfileset src="lib/jedis-3.6.0.jar" />
+			<zipfileset src="lib/opencsv-5.6.jar" />
+			<zipfileset src="lib/slf4j-api-1.7.25.jar" />
+			<zipfileset src="lib/slf4j-simple-1.7.25.jar" />
 		</jar>
 	</target>
 
