@@ -200,7 +200,10 @@ public class DigitalTwinConnectorPlugin implements IPluginActionDelegate {
 			Iterator<MAttribute> iter = map.keySet().iterator();
 			while(iter.hasNext()) {
 				MAttribute attribute = iter.next();
-				writer.writeNext(new String[] {attribute.toString(),map.get(attribute).toString()});
+				if (attribute.type().toString().equals("Environment")) {
+					//api.getObject("environment1").value();
+				}
+				writer.writeNext(new String[] {attribute.toString(),map.get(attribute).toString(),map.get(attribute).type().toString()});
 			}
 			//map.clear();
 		}
