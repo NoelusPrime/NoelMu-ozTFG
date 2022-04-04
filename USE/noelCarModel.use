@@ -331,7 +331,10 @@ class Clock
                     snapshot.carLength := Car.allInstances()->asOrderedSet()->first().place.length;
                     snapshot.carWidth := Car.allInstances()->asOrderedSet()->first().place.width;
                     snapshot.carHeight := Car.allInstances()->asOrderedSet()->first().place.height;
-                    snapshot.environment := Environment.allInstances()->asOrderedSet()->first();
+                    --snapshot.environment := Environment.allInstances()->asOrderedSet()->first();
+                    snapshot.environmentLength := Environment.allInstances()->asOrderedSet()->first().size.length;
+                    snapshot.environmentWidth := Environment.allInstances()->asOrderedSet()->first().size.width;
+                    snapshot.environmentHeight := Environment.allInstances()->asOrderedSet()->first().size.height;
                     snapshot.time := self.now;
             end
     end
@@ -350,7 +353,9 @@ class Snapshot
         carLength : Real
         carWidth : Real
         carHeight : Real
-        environment : Environment
+        environmentLength : Real
+        environmentWidth : Real
+        environmentHeight : Real
         time : Integer
     operations
         init(car : Car, environment : Environment, time : Integer)
@@ -360,7 +365,9 @@ class Snapshot
                 self.carLength := car.place.length;
                 self.carWidth := car.place.width;
                 self.carHeight := car.place.height;
-                self.environment := environment;
+                self.environmentLength := environment.size.length;
+                self.environmentWidth := environment.size.width;
+                self.environmentHeight := environment.size.height;
                 self.time := time;
             end
 end
