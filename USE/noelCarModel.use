@@ -11,6 +11,15 @@ class Config
         DEG_TO_RAD : Real derive = PI / 180
         LINEAR_PRECISSION : Real derive = 0.00000001
         ANGULAR_PRECISSION : Real derive = 0.00000001
+    operations
+        --greaterThan(num1: Real, num2: Real) : Boolean = num1 - num2 > LINEAR_PRECISSION
+        greaterThanOrEqualTo(num1: Real, num2: Real) : Boolean = num1 - num2 >= LINEAR_PRECISSION
+        --lessThan(num1: Real, num2: Real) : Boolean = true
+        lessThanOrEqualTo(num1: Real, num2: Real) : Boolean = num2 - num1 >= LINEAR_PRECISSION
+
+        AngleGreaterThanOrEqualTo(num1: Real, num2: Real) : Boolean = num1 - num2 >= ANGULAR_PRECISSION
+
+        AnglelessThanOrEqualTo(num1: Real, num2: Real) : Boolean = num2 - num1 >= ANGULAR_PRECISSION
 end
 
 enum Action {Forward, Rotate}
@@ -31,9 +40,12 @@ class Position
                 x: (tuple1.x - posX) * ((config.DEG_TO_RAD*angle1).cos()) - (tuple1.y - posY) * ((angle1*config.DEG_TO_RAD).sin()) + posX,
                 y: (tuple1.x - posX) * ((config.DEG_TO_RAD*angle1).sin()) + (tuple1.y - posY) * ((angle1*config.DEG_TO_RAD).cos()) + posY,
                 z: (tuple1.z)}
-        outOfEnvironment (env : Environment) : Boolean = pos.x < 0 or pos.x > env.size.length or
-                                                        pos.y < 0 or pos.y > env.size.width or
-                                                        pos.z < 0 or pos.z > env.size.height
+        outOfEnvironment (env : Environment) : Boolean =    pos.x < 0 or pos.x > env.size.length or
+                                                            pos.y < 0 or pos.y > env.size.width or
+                                                            pos.z < 0 or pos.z > env.size.height
+        
+        --Calculates the slope between current point and objective point (in x and y coordenates, z axis is not used)
+        slopeTo(tuple1 : Tuple(x : Real, y : Real, z : Real)) : Real = (tuple1.y - self.pos.y) / (tuple1.x - self.pos.x)
 end
 
 association positionConfig between
@@ -101,10 +113,12 @@ class Place < Size,Pose
         maximumY (angle1 : Real) : Real = (((((rotatePoint(Tuple{x:b1.x,y:b1.y,z:b1.z},angle1,0,0)).y).max(rotatePoint(Tuple{x:b2.x,y:b2.y,z:b2.z},angle1,0,0).y)).max(rotatePoint(Tuple{x:b3.x,y:b3.y,z:b3.z},angle1,0,0).y)).max(rotatePoint(Tuple{x:b4.x,y:b4.y,z:b4.z},angle1,0,0).y))
 
         -- Comprueba  si en el eje X los objetos tienen puntos en común, rotados "angle" grados
-        collidingX (place1 : Place, angle : Real) : Boolean = (self.minimumX (angle) <= place1.maximumX (angle)) and (self.maximumX (angle) >= place1.minimumX (angle))
+        --collidingX (place1 : Place, angle : Real) : Boolean = (self.minimumX (angle) <= place1.maximumX (angle)) and (self.maximumX (angle) >= place1.minimumX (angle))
+        collidingX (place1 : Place, angle : Real) : Boolean = (config.lessThanOrEqualTo(self.minimumX(angle),place1.maximumX(angle)) and config.greaterThanOrEqualTo(self.maximumX (angle), place1.minimumX (angle)))
 
         -- Comprueba  si en el eje Y los objetos tienen puntos en común, rotados "angle" grados
-        collidingY (place1 : Place, angle : Real) : Boolean = (self.minimumY (angle) <= place1.maximumY (angle)) and (self.maximumY (angle) >= place1.minimumY (angle))     
+        --collidingY (place1 : Place, angle : Real) : Boolean = (self.minimumY (angle) <= place1.maximumY (angle)) and (self.maximumY (angle) >= place1.minimumY (angle))     
+        collidingY (place1 : Place, angle : Real) : Boolean = (config.lessThanOrEqualTo(self.minimumY (angle),place1.maximumY (angle)) and config.greaterThanOrEqualTo(self.maximumY (angle),place1.minimumY (angle)))     
 
 
         -- Este método debería comprobar si rotados el place actual y el "place1" parámetro "angle1" ángulos con respecto al origen de coordenadas, existe algún eje (ya sea x o y)
@@ -125,6 +139,10 @@ class Place < Size,Pose
                 self.pos := self.rotatePoint(self.pos,angle1,posX,posY);
                 self.angle := self.angle + angle1;
             end
+
+        -- Comprueba que dicho place esté dentro de los límites del environment dado
+        isInEnvironment(e: Environment) : Boolean = e.isWithin(self.b1) and e.isWithin(self.b2) and e.isWithin(self.b3) and e.isWithin(self.b4) and
+                                                    e.isWithin(self.h1) and e.isWithin(self.h1) and e.isWithin(self.h1) and e.isWithin(self.h1)
 end
 
 --- Car
@@ -135,11 +153,12 @@ class Car < ActiveObject
         action : Action
         isMoving : Boolean
         isRotating : Boolean
+        previousPos : Tuple (x: Real, y: Real, z: Real)
     operations
         init(config: Config)
             begin
-                declare placeCar: Place, placeTouchLeft: Place, placeTouchRight: Place, placeTouchCenter: Place, motor: Motor, behavior: TestBehavior,
-                        clock: Clock, touchLeft: TouchSensor, touchRight: TouchSensor, touchCenter: TouchSensor;
+                declare placeCar: Place, placeTouchLeft: Place, placeTouchRight: Place, placeTouchCenter: Place, placeLight: Place, motor: Motor, behavior: TestBehavior,
+                        clock: Clock, touchLeft: TouchSensor, touchRight: TouchSensor, touchCenter: TouchSensor, light: LightSensor;
 
                 placeCar := new Place();
                 clock := new Clock();
@@ -165,26 +184,37 @@ class Car < ActiveObject
                 touchRight := new TouchSensor();
                 touchCenter := new TouchSensor();
 
+                light := new LightSensor();
+
                 insert (self,touchLeft) into TouchSensorConnection;
                 insert (self,touchRight) into TouchSensorConnection;
                 insert (self,touchCenter) into TouchSensorConnection;
                 
+                insert (self,light) into LightSensorConnection;
 
                 placeTouchLeft := new Place();
                 placeTouchRight := new Place();
                 placeTouchCenter := new Place();
 
+                placeLight := new Place();
+
                 insert (placeTouchLeft,config) into positionConfig;
                 insert (placeTouchRight,config) into positionConfig;
                 insert (placeTouchCenter,config) into positionConfig;
+
+                insert (placeLight,config) into positionConfig;
 
                 touchLeft.place := placeTouchLeft;
                 touchRight.place := placeTouchRight;
                 touchCenter.place := placeTouchCenter;
 
+                light.place := placeLight;
+
                 touchLeft.place.init(Tuple{x=self.place.pos.x-5,y=self.place.pos.y+self.place.width,z=self.place.pos.z},45,7,3,1);
                 touchRight.place.init(Tuple{x=self.place.pos.x+self.place.length+0.05,y=self.place.pos.y+self.place.width+4.95,z=self.place.pos.z},315,7,3,1);
                 touchCenter.place.init(Tuple{x=self.place.pos.x,y=self.place.pos.y+21.8,z=self.place.pos.z},0,19,3,1);
+
+                light.place.init(Tuple{x=self.place.pos.x+1,y=self.place.pos.y+1,z=self.place.pos.z},0,2,2,2);
             end
         action()
             begin
@@ -192,8 +222,27 @@ class Car < ActiveObject
                     b.executeBehavior();
                 end;
             end;
+
         --Comprueba si el place p está interseccionando con alguno de los sensores de choque
         isIntersectingWithSensors(p: Place) : Boolean = (TouchSensor.allInstances->select(t | t.place.isIntersectingWith(p)))->isEmpty = false;
+        --Comprueba si el place del coche y el de sus sensores se encuentra dentro del entorno
+        isInEnvironment(e: Environment) : Boolean = self.place.isInEnvironment(e) and TouchSensor.allInstances()->select(t | self.touch->includes(t))->forAll(q | q.place.isInEnvironment(e));
+
+        moveTo(x:Real,y:Real)
+        begin
+            -- If (anguloCorrecto) then mover hacia delante else rotar el coche para tener el angulo correcto
+            if (true) --En el true debería ir una función que me calcule si el ángulo es correcto para ir a la posición indicada
+            then
+                if (self.previousPos = null or self.previousPos = self.place.pos) 
+
+                then
+
+                else
+                self.motor.forward();
+                end;
+            else
+            end;
+        end;
     end
 
 abstract class Behavior
@@ -231,14 +280,22 @@ end
 
 class LightSensor < Sensor
     attributes
-        position : Position
+        place : Place
         lightValue : Integer    derived:45
+    operations
+        --Devuelve true si debajo del sensor hay un objeto linea
+        isLineBelow() : Boolean = Line.allInstances().part.place->select(p | p.isIntersectingWith(self.place))->isEmpty = false
+
+        --Devuelve el color que tiene la linea que se encuentra debajo del sensor
+        colorBelow() : Color = Line.allInstances()->any(l | l.part->select( p | p.place.isIntersectingWith(self.place))->isEmpty = false).color
 end
 
 class UltrasonicSensor < Sensor
     attributes
         pose : Pose
         distance : Integer   derived: 40 -- cm
+    operations
+        distanceForward() : Real = 0
 end
 
 composition UltrasonicSensorConnection between
@@ -266,19 +323,27 @@ class Motor
                 declare previousPos : Tuple(x:Real,y:Real,z:Real);
                 previousPos := self.car.place.pos;
                 self.car.place.move(
-                                                    self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).cos(),
-                                                    self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
-                                                    0);
+                                        self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).cos(),
+                                        self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
+                                        0);
                 for TouchSensor in self.car.touch do
                 TouchSensor.place.move(
                                         self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).cos(),
                                         self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
                                         0);
                 end;
+                self.car.light.place.move(
+                                        self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).cos(),
+                                        self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
+                                        0
+                );
+
                 if  ((ElementPart.allInstances->select(p | self.car.place.isIntersectingWith(p.place))->isEmpty() = false) 
                     or 
-                    (ElementPart.allInstances->select(q | self.car.isIntersectingWithSensors(q.place)))->isEmpty= false) then
-                    
+                    (ElementPart.allInstances->select(q | self.car.isIntersectingWithSensors(q.place)))->isEmpty= false) 
+                
+                then
+
                     self.car.place.pos := previousPos;
                     for TouchSensor in self.car.touch do
                     TouchSensor.place.move(
@@ -286,6 +351,11 @@ class Motor
                                         -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
                                         0);
                     end;
+                    self.car.light.place.move(
+                                        -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).cos(),
+                                        -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
+                                        0
+                    );
                 end;
             end;
 
@@ -294,18 +364,25 @@ class Motor
                 declare previousPos : Tuple(x:Real,y:Real,z:Real);
                 previousPos := self.car.place.pos;
                 self.car.place.move(
-                                                    -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).cos(),
-                                                    -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
-                                                    0);
+                                        -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).cos(),
+                                        -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
+                                        0);
                 for TouchSensor in self.car.touch do
                 TouchSensor.place.move(
                                         -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).cos(),
                                         -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
                                         0);
                 end;
+                self.car.light.place.move(
+                                        -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).cos(),
+                                        -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
+                                        0
+                    );
                 if  ((ElementPart.allInstances->select(p | self.car.place.isIntersectingWith(p.place))->isEmpty() = false) 
                     or 
-                    (ElementPart.allInstances->select(q | self.car.isIntersectingWithSensors(q.place)))->isEmpty= false) then
+                    (ElementPart.allInstances->select(q | self.car.isIntersectingWithSensors(q.place)))->isEmpty= false) 
+                    
+                then
                     
                     self.car.place.pos := previousPos;
                     for TouchSensor in self.car.touch do
@@ -314,15 +391,21 @@ class Motor
                                         self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
                                         0);
                     end;
+                    self.car.light.place.move(
+                                        self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).cos(),
+                                        self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
+                                        0
+                    );
                 end;
             end;
 
-        
+      
         rotateClockwise()
             begin
                 for TouchSensor in self.car.touch do
                     TouchSensor.place.rotatePlace(self.speed*self.car.clock.tickResolution * (-1),self.car.place.center.x,self.car.place.center.y);
                 end;
+                self.car.light.place.rotatePlace(self.speed*self.car.clock.tickResolution * (-1),self.car.place.center.x,self.car.place.center.y);
                 self.car.place.rotatePlace(self.speed*self.car.clock.tickResolution * (-1), self.car.place.center.x,self.car.place.center.y);
                 --
                 if  ((ElementPart.allInstances->select(p | self.car.place.isIntersectingWith(p.place))->isEmpty() = false) 
@@ -332,6 +415,7 @@ class Motor
                     for TouchSensor in self.car.touch do
                         TouchSensor.place.rotatePlace(self.speed*self.car.clock.tickResolution,self.car.place.center.x,self.car.place.center.y);
                     end;
+                    self.car.light.place.rotatePlace(self.speed*self.car.clock.tickResolution,self.car.place.center.x,self.car.place.center.y);
                     self.car.place.rotatePlace(self.speed*self.car.clock.tickResolution, self.car.place.center.x,self.car.place.center.y);
                 --
                 end;
@@ -341,6 +425,7 @@ class Motor
                 for TouchSensor in self.car.touch do
                     TouchSensor.place.rotatePlace(self.speed*self.car.clock.tickResolution,self.car.place.center.x,self.car.place.center.y);
                 end;
+                self.car.light.place.rotatePlace(self.speed*self.car.clock.tickResolution,self.car.place.center.x,self.car.place.center.y);
                 self.car.place.rotatePlace(self.speed*self.car.clock.tickResolution, self.car.place.center.x,self.car.place.center.y);
                 --
                 if  ((ElementPart.allInstances->select(p | self.car.place.isIntersectingWith(p.place))->isEmpty() = false) 
@@ -350,6 +435,7 @@ class Motor
                     for TouchSensor in self.car.touch do
                         TouchSensor.place.rotatePlace(self.speed*self.car.clock.tickResolution * (-1),self.car.place.center.x,self.car.place.center.y);
                     end;
+                    self.car.light.place.rotatePlace(self.speed*self.car.clock.tickResolution * (-1),self.car.place.center.x,self.car.place.center.y);
                     self.car.place.rotatePlace(self.speed*self.car.clock.tickResolution * (-1), self.car.place.center.x,self.car.place.center.y);
                 --
                 end;
@@ -372,7 +458,7 @@ class Environment
     attributes
         size : Size
     operations
-        isWithin (tuple1 : Tuple(x:Real,y:Real,z:Real)) : Boolean = tuple1.x >= 0 and tuple1.x <= size.length
+    isWithin (tuple1 : Tuple(x:Real,y:Real,z:Real)) : Boolean =     tuple1.x >= 0 and tuple1.x <= size.length
                                                                 and tuple1.y >= 0 and tuple1.y <= size.width
                                                                 and tuple1.z >= 0 and tuple1.z <= size.height
 end
