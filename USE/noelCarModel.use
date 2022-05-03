@@ -23,7 +23,7 @@ class Config
 end
 
 enum Action {Forward, Rotate}
-enum Color {Black,Yellow, Red, Blue}
+--enum Color {Black,Yellow, Red, Blue}
 
 class Position
     attributes
@@ -40,12 +40,12 @@ class Position
                 x: (tuple1.x - posX) * ((config.DEG_TO_RAD*angle1).cos()) - (tuple1.y - posY) * ((angle1*config.DEG_TO_RAD).sin()) + posX,
                 y: (tuple1.x - posX) * ((config.DEG_TO_RAD*angle1).sin()) + (tuple1.y - posY) * ((angle1*config.DEG_TO_RAD).cos()) + posY,
                 z: (tuple1.z)}
+
+            -- Comprueba si la posición se encuentra fuera del environment dado por parámetro
         outOfEnvironment (env : Environment) : Boolean =    pos.x < 0 or pos.x > env.size.length or
                                                             pos.y < 0 or pos.y > env.size.width or
                                                             pos.z < 0 or pos.z > env.size.height
         
-        --Calculates the slope between current point and objective point (in x and y coordenates, z axis is not used)
-        slopeTo(tuple1 : Tuple(x : Real, y : Real, z : Real)) : Real = (tuple1.y - self.pos.y) / (tuple1.x - self.pos.x)
 end
 
 association positionConfig between
@@ -69,6 +69,13 @@ class Size
         length : Real
         width : Real
         height : Real
+    operations
+        initSize(l: Real, w: Real, h: Real)
+            begin
+                self.length := l;
+                self.width := w;
+                self.height := h;
+            end
 end
 
 class Place < Size,Pose
@@ -89,6 +96,11 @@ class Place < Size,Pose
         h4 : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x + (self.length * (angle * config.DEG_TO_RAD).cos()) - (self.width * (angle * config.DEG_TO_RAD).sin()),y:self.pos.y + (self.length * (angle * config.DEG_TO_RAD).sin()) + (self.width * (angle * config.DEG_TO_RAD).cos()),z:self.pos.z + self.height}
 
         center : Tuple(x : Real, y : Real, z : Real) derive = Tuple{x:self.pos.x + (self.length * (angle * config.DEG_TO_RAD).cos()/2) - (self.width * (angle * config.DEG_TO_RAD).sin()/2),y:self.pos.y + (self.length * (angle * config.DEG_TO_RAD).sin()/2) + (self.width * (angle * config.DEG_TO_RAD).cos()/2),z:self.pos.z}
+
+        seg1 : Tuple(a1 : Real, a2 : Real, b1 : Real, b2 : Real) derive = Tuple{a1: b1.x, a2: b1.y, b1: b2.x, b2: b2.y}
+        seg2 : Tuple(a1 : Real, a2 : Real, b1 : Real, b2 : Real) derive = Tuple{a1: b1.x, a2: b1.y, b1: b3.x, b2: b3.y}
+        seg3 : Tuple(a1 : Real, a2 : Real, b1 : Real, b2 : Real) derive = Tuple{a1: b2.x, a2: b2.y, b1: b4.x, b2: b4.y}
+        seg4 : Tuple(a1 : Real, a2 : Real, b1 : Real, b2 : Real) derive = Tuple{a1: b3.x, a2: b3.y, b1: b4.x, b2: b4.y}
     operations
 
         init(pos: Tuple(x:Real,y:Real,z:Real),angle : Real, length: Real, width: Real, height: Real)
@@ -131,7 +143,7 @@ class Place < Size,Pose
 
         -- Este método comprueba si el place actual está interseccionando en algún punto con el objeto place1 que se le pasa por parámetro
         isIntersectingWith (place1: Place) : Boolean = (collidingAxis (place1,self.angle)) and (collidingAxis (place1,place1.angle))
-        
+
         
         -- Se rota un place con respecto al punto que se especifica por parametro tantos grados como se indique
         rotatePlace(angle1: Real, posX: Real, posY: Real)
@@ -143,6 +155,8 @@ class Place < Size,Pose
         -- Comprueba que dicho place esté dentro de los límites del environment dado
         isInEnvironment(e: Environment) : Boolean = e.isWithin(self.b1) and e.isWithin(self.b2) and e.isWithin(self.b3) and e.isWithin(self.b4) and
                                                     e.isWithin(self.h1) and e.isWithin(self.h1) and e.isWithin(self.h1) and e.isWithin(self.h1)
+
+        segments() : Set(Tuple(a1 : Real, a2 : Real, b1 : Real, b2 : Real)) =  Set{seg1,seg2,seg3,seg4};
 end
 
 --- Car
@@ -243,6 +257,11 @@ class Car < ActiveObject
             else
             end;
         end;
+
+        --Devuelve el ángulo entre el centro del coche y el objetivo
+        angleTo(objectivePos : Tuple (x:Real, y:Real, z:Real)) : Real = (vectorTo(Tuple{x=objectivePos.x,y=objectivePos.y,z=objectivePos.z}).x).acos()
+        --Devuelve un vector normalizado que se origina en el centro del coche y acaba en el objetivo (sin contar el eje Z)
+        vectorTo(objectivePos : Tuple (x:Real, y:Real, z:Real)) : Tuple (x: Real, y: Real) = Tuple{x=(objectivePos.x - self.place.center.x) /((objectivePos.x - self.place.center.x)*(objectivePos.x - self.place.center.x)+(objectivePos.y - self.place.center.y)*(objectivePos.y - self.place.center.y)).sqrt(), y=(objectivePos.y - self.place.center.y)/ ((objectivePos.x - self.place.center.x)*(objectivePos.x - self.place.center.x)+(objectivePos.y - self.place.center.y)*(objectivePos.y - self.place.center.y)).sqrt()}
     end
 
 abstract class Behavior
@@ -284,18 +303,51 @@ class LightSensor < Sensor
         lightValue : Integer    derived:45
     operations
         --Devuelve true si debajo del sensor hay un objeto linea
-        isLineBelow() : Boolean = Line.allInstances().part.place->select(p | p.isIntersectingWith(self.place))->isEmpty = false
+        isLineBelow() : Boolean = Line.allInstances().place->select(p | p.isIntersectingWith(self.place))->isEmpty = false
 
-        --Devuelve el color que tiene la linea que se encuentra debajo del sensor
-        colorBelow() : Color = Line.allInstances()->any(l | l.part->select( p | p.place.isIntersectingWith(self.place))->isEmpty = false).color
+        --Devuelve el valor que tiene la linea que se encuentra debajo del sensor
+        colorBelow() : Integer =
+                if (isLineBelow() = false) then
+                    0
+                else
+                    Line.allInstances()->any(l | l.place->select( p | p.isIntersectingWith(self.place))->isEmpty = false).color
+                endif
 end
 
 class UltrasonicSensor < Sensor
+    --falta inicializarlo en el car.init()
     attributes
         pose : Pose
-        distance : Integer   derived: 40 -- cm
+        direction : Tuple(v1: Real, v2: Real) derive = Tuple{v1=pose.angle.cos(),v2=pose.angle.sin()}
     operations
-        distanceForward() : Real = 0
+        --Devuelve la distancia entre el sensor y el obstáculo más cercano frente a él
+        distanceForward() : Real
+            begin
+                declare minDistance: Real, segment : Tuple(a1: Real, a2: Real, b1: Real, b2: Real), r : Tuple(t1:Real,t2:Real);
+
+                for box in Box.allInstances() do
+                    for place in box.place do
+                        for seg in place.segments() do
+                            if (minDistance.oclIsUndefined() = true ) then
+                                --r := resolveRayIntersection(seg);
+                                result := seg.a1;
+                            end;
+                        end;
+                    end;
+                end;
+            end;
+
+
+        resolveRayIntersection (seg : Tuple(a1: Real, a2: Real, b1: Real, b2: Real)) : Tuple(t1: Real, t2: Real) = Tuple{
+            t1=(-self.pose.pos.x*seg.b2+seg.a1*seg.b2+self.pose.pos.x*seg.a2+seg.b1*self.pose.pos.y-seg.a2*seg.b1-seg.a1*self.pose.pos.y/self.direction.v1*seg.b2-self.direction.v1*seg.a2-seg.b1*self.direction.v2+seg.a1*self.direction.v2)
+            ,
+            t2=(-seg.a1*self.direction.v2+self.pose.pos.x*self.direction.v2+seg.a2*self.direction.v1-self.pose.pos.y*self.direction.v1/seg.b1*self.direction.v2-seg.a1*self.direction.v2-seg.b2*self.direction.v1+seg.a2*self.direction.v1)}
+       
+        
+        
+        --resolveT1 (seg : Tuple(a1:Real,a2:Real,b1:Real,b2:Real)) : Real = -self.pose.pos.x*seg.b2+seg.a1*seg.b2+self.pose.pos.x*seg.a2+seg.b1*self.pose.pos.y-seg.a2*seg.b1-seg.a1*self.pose.pos.y/self.direction.v1*seg.b2-self.direction.v1*seg.a2-seg.b1*self.direction.v2+seg.a1*self.direction.v2;
+        --resolveT2 (seg : Tuple(a1:Real,a2:Real,b1:Real,b2:Real)) : Real = -seg.a1*self.direction.v2+self.pose.pos.x*self.direction.v2+seg.a2*self.direction.v1-self.pose.pos.y*self.direction.v1/seg.b1*self.direction.v2-seg.a1*self.direction.v2-seg.b2*self.direction.v1+seg.a2*self.direction.v1;
+
 end
 
 composition UltrasonicSensorConnection between
@@ -338,9 +390,15 @@ class Motor
                                         0
                 );
 
-                if  ((ElementPart.allInstances->select(p | self.car.place.isIntersectingWith(p.place))->isEmpty() = false) 
-                    or 
-                    (ElementPart.allInstances->select(q | self.car.isIntersectingWithSensors(q.place)))->isEmpty= false) 
+                
+
+                --Este parece que funciona
+
+                --if  ((Box.allInstances->select(p | self.car.place.isIntersectingWith(p.place))->isEmpty() = false) 
+                if (Box.allInstances->select(p | p.place->select(r | self.car.place.isIntersectingWith(r))->isEmpty() = false)->isEmpty() = false)
+                    or
+                --(Box.allInstances->select(q | self.car.isIntersectingWithSensors(q.place)))->isEmpty()= false) 
+                    (Box.allInstances->select(q | q.place->select(t | self.car.isIntersectingWithSensors(t))->isEmpty() = false)->isEmpty() = false)
                 
                 then
 
@@ -378,9 +436,12 @@ class Motor
                                         -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
                                         0
                     );
-                if  ((ElementPart.allInstances->select(p | self.car.place.isIntersectingWith(p.place))->isEmpty() = false) 
-                    or 
-                    (ElementPart.allInstances->select(q | self.car.isIntersectingWithSensors(q.place)))->isEmpty= false) 
+
+                --if  ((Box.allInstances->select(p | self.car.place.isIntersectingWith(p.place))->isEmpty() = false) 
+                if  (Box.allInstances->select(p | p.place->select(r | self.car.place.isIntersectingWith(r))->isEmpty() = false)->isEmpty() = false)
+                    or
+                --(Box.allInstances->select(q | self.car.isIntersectingWithSensors(q.place)))->isEmpty()= false) 
+                    (Box.allInstances->select(q | q.place->select(t | self.car.isIntersectingWithSensors(t))->isEmpty() = false)->isEmpty() = false) 
                     
                 then
                     
@@ -407,10 +468,14 @@ class Motor
                 end;
                 self.car.light.place.rotatePlace(self.speed*self.car.clock.tickResolution * (-1),self.car.place.center.x,self.car.place.center.y);
                 self.car.place.rotatePlace(self.speed*self.car.clock.tickResolution * (-1), self.car.place.center.x,self.car.place.center.y);
-                --
-                if  ((ElementPart.allInstances->select(p | self.car.place.isIntersectingWith(p.place))->isEmpty() = false) 
-                    or 
-                    (ElementPart.allInstances->select(q | self.car.isIntersectingWithSensors(q.place)))->isEmpty= false) then
+                
+                --if  ((Box.allInstances->select(p | self.car.place.isIntersectingWith(p.place))->isEmpty() = false) 
+                if  (Box.allInstances->select(p | p.place->select(r | self.car.place.isIntersectingWith(r))->isEmpty() = false)->isEmpty() = false)
+                    or
+                --(Box.allInstances->select(q | self.car.isIntersectingWithSensors(q.place)))->isEmpty()= false) 
+                    (Box.allInstances->select(q | q.place->select(t | self.car.isIntersectingWithSensors(t))->isEmpty() = false)->isEmpty() = false) 
+                     
+                then
 
                     for TouchSensor in self.car.touch do
                         TouchSensor.place.rotatePlace(self.speed*self.car.clock.tickResolution,self.car.place.center.x,self.car.place.center.y);
@@ -428,9 +493,13 @@ class Motor
                 self.car.light.place.rotatePlace(self.speed*self.car.clock.tickResolution,self.car.place.center.x,self.car.place.center.y);
                 self.car.place.rotatePlace(self.speed*self.car.clock.tickResolution, self.car.place.center.x,self.car.place.center.y);
                 --
-                if  ((ElementPart.allInstances->select(p | self.car.place.isIntersectingWith(p.place))->isEmpty() = false) 
-                    or 
-                    (ElementPart.allInstances->select(q | self.car.isIntersectingWithSensors(q.place)))->isEmpty= false) then
+                --if  ((Box.allInstances->select(p | self.car.place.isIntersectingWith(p.place))->isEmpty() = false) 
+                if  (Box.allInstances->select(p | p.place->select(r | self.car.place.isIntersectingWith(r))->isEmpty() = false)->isEmpty() = false)
+                    or
+                --(Box.allInstances->select(q | self.car.isIntersectingWithSensors(q.place)))->isEmpty()= false) 
+                    (Box.allInstances->select(q | q.place->select(t | self.car.isIntersectingWithSensors(t))->isEmpty() = false)->isEmpty() = false) 
+                
+                then
 
                     for TouchSensor in self.car.touch do
                         TouchSensor.place.rotatePlace(self.speed*self.car.clock.tickResolution * (-1),self.car.place.center.x,self.car.place.center.y);
@@ -458,22 +527,50 @@ class Environment
     attributes
         size : Size
     operations
+    init(l: Real, w: Real, h: Real, conf: Config) 
+        begin
+            declare b1: Box, b2: Box, b3: Box, b4: Box, p1: Place, p2: Place, p3: Place, p4: Place ;
+            self.size := new Size();
+            self.size.initSize(l,w,h);
+
+            b1 := new Box();
+            b2 := new Box();
+            b3 := new Box();
+            b4 := new Box();
+
+            p1 := new Place();
+            p2 := new Place();
+            p3 := new Place();
+            p4 := new Place();
+
+            p1.init(Tuple{x=0,y=0,z=0},0,l,0,0);
+            p2.init(Tuple{x=0,y=0,z=0},0,0,w,0);
+            p3.init(Tuple{x=0,y=w,z=0},0,l,0,0);
+            p4.init(Tuple{x=l,y=0,z=0},0,0,w,0);
+
+            insert (b1,p1) into ElementPlaces;
+            insert (b2,p2) into ElementPlaces;
+            insert (b3,p3) into ElementPlaces;
+            insert (b4,p4) into ElementPlaces;
+
+            insert (p1,conf) into positionConfig;
+            insert (p2,conf) into positionConfig;
+            insert (p3,conf) into positionConfig;
+            insert (p4,conf) into positionConfig;
+        end
     isWithin (tuple1 : Tuple(x:Real,y:Real,z:Real)) : Boolean =     tuple1.x >= 0 and tuple1.x <= size.length
                                                                 and tuple1.y >= 0 and tuple1.y <= size.width
                                                                 and tuple1.z >= 0 and tuple1.z <= size.height
 end
 
 abstract class EnvironmentElement
-    end
-
-class ElementPart
-    attributes
-       place: Place
-    end
+end
 
 class Line < EnvironmentElement
     attributes
-        color: Color
+        color: Integer
+    constraints
+        inv colorBetween: self.color >= 0 and self.color <= 255
     end
 
 class Box < EnvironmentElement
@@ -490,9 +587,9 @@ composition ElementOnTheFloor between
     EnvironmentElement [*] role element
     end
 
-composition ElementParts between
+composition ElementPlaces between
     EnvironmentElement [1] role element
-    ElementPart [1..*] role part
+    Place [1..*] role place
     end
 
 ------- SIMULATION 
