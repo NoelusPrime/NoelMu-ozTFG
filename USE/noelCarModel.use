@@ -12,9 +12,8 @@ class Config
         LINEAR_PRECISSION : Real derive = 0.00000001
         ANGULAR_PRECISSION : Real derive = 0.00000001
     operations
-        --greaterThan(num1: Real, num2: Real) : Boolean = num1 - num2 > LINEAR_PRECISSION
         greaterThanOrEqualTo(num1: Real, num2: Real) : Boolean = num1 - num2 >= LINEAR_PRECISSION
-        --lessThan(num1: Real, num2: Real) : Boolean = true
+
         lessThanOrEqualTo(num1: Real, num2: Real) : Boolean = num2 - num1 >= LINEAR_PRECISSION
 
         AngleGreaterThanOrEqualTo(num1: Real, num2: Real) : Boolean = num1 - num2 >= ANGULAR_PRECISSION
@@ -23,17 +22,21 @@ class Config
 end
 
 enum Action {Forward, Rotate}
---enum Color {Black,Yellow, Red, Blue}
 
 class Position
     attributes
         pos : Tuple(x : Real, y : Real, z : Real)
     operations
-        move( dx: Real, dy: Real, dz: Real)
+        --Aplica un desplazamiento a la posición actual
+        move(dx: Real, dy: Real, dz: Real)
             begin
                 self.pos:=Tuple{x:self.pos.x+dx, y:self.pos.y+dy,z:self.pos.z+dz};
             end
-
+        --Teletransporta el objeto a la posición dada
+        moveTo( tuple: Tuple(x:Real,y:Real,z:Real))
+            begin
+                self.pos := tuple;
+            end
             -- Dado un punto en el espacio, un angulo y una posicion "eje" en el plano xy, devuelve la posicion resultante de rotar dicho punto sobre el punto eje los angulos indicados
         rotatePoint (tuple1 :Tuple(x : Real, y : Real, z : Real), angle1: Real, posX: Real, posY: Real) : Tuple(x : Real, y : Real, z : Real) = 
             Tuple{
@@ -60,7 +63,13 @@ class Pose < Position
     operations
         rotate(angle : Real)
         begin
-            self.angle := angle;
+            self.angle := self.angle + angle;
+        end
+        initPose(tuple: Tuple(x:Real,y:Real,z:Real),angle1:Real, config:Config)
+        begin
+            self.pos := Tuple{x=tuple.x,y=tuple.y,z=tuple.z};
+            self.angle := angle1;
+            insert (self,config) into positionConfig;
         end
 end
 
@@ -103,13 +112,14 @@ class Place < Size,Pose
         seg4 : Tuple(a1 : Real, a2 : Real, b1 : Real, b2 : Real) derive = Tuple{a1: b3.x, a2: b3.y, b1: b4.x, b2: b4.y}
     operations
 
-        init(pos: Tuple(x:Real,y:Real,z:Real),angle : Real, length: Real, width: Real, height: Real)
+        init(pos: Tuple(x:Real,y:Real,z:Real),angle : Real, length: Real, width: Real, height: Real, config: Config)
             begin
                 self.pos := pos;
                 self.angle := angle;
                 self.length := length;
                 self.width := width;
                 self.height := height;
+                insert (self,config) into positionConfig;
             end
 
         -- Devuelve la coordenada X menor de todas las esquinas cuando el objeto ha sido rotado "angle" grados
@@ -171,20 +181,16 @@ class Car < ActiveObject
     operations
         init(config: Config)
             begin
-                declare placeCar: Place, placeTouchLeft: Place, placeTouchRight: Place, placeTouchCenter: Place, placeLight: Place, motor: Motor, behavior: TestBehavior,
-                        clock: Clock, touchLeft: TouchSensor, touchRight: TouchSensor, touchCenter: TouchSensor, light: LightSensor;
+                declare placeCar: Place, placeTouchLeft: Place, placeTouchRight: Place, placeTouchCenter: Place, placeLight: Place, poseUltrasonic: Pose, motor: Motor, behavior: TestBehavior,
+                        clock: Clock, touchLeft: TouchSensor, touchRight: TouchSensor, touchCenter: TouchSensor, light: LightSensor, ultrasonic: UltrasonicSensor;
 
                 placeCar := new Place();
                 clock := new Clock();
 
-                self.place := placeCar;
-                placeCar.length := 19;
-                placeCar.width := 16.5;
-                placeCar.height := 5;
-                placeCar.pos := Tuple{x=10,y=10,z=0};
-                placeCar.angle := 0;
+                insert (self,config) into carConfig;
 
-                insert (self.place,config) into positionConfig;
+                self.place := placeCar;
+                self.place.init(Tuple{x=30,y=30,z=0},0,19,16.5,5,config);
 
                 behavior := new TestBehavior();
                 
@@ -200,11 +206,15 @@ class Car < ActiveObject
 
                 light := new LightSensor();
 
+                ultrasonic := new UltrasonicSensor();
+                
                 insert (self,touchLeft) into TouchSensorConnection;
                 insert (self,touchRight) into TouchSensorConnection;
                 insert (self,touchCenter) into TouchSensorConnection;
                 
                 insert (self,light) into LightSensorConnection;
+
+                insert (self,ultrasonic) into UltrasonicSensorConnection;
 
                 placeTouchLeft := new Place();
                 placeTouchRight := new Place();
@@ -212,11 +222,7 @@ class Car < ActiveObject
 
                 placeLight := new Place();
 
-                insert (placeTouchLeft,config) into positionConfig;
-                insert (placeTouchRight,config) into positionConfig;
-                insert (placeTouchCenter,config) into positionConfig;
-
-                insert (placeLight,config) into positionConfig;
+                poseUltrasonic := new Pose();
 
                 touchLeft.place := placeTouchLeft;
                 touchRight.place := placeTouchRight;
@@ -224,11 +230,15 @@ class Car < ActiveObject
 
                 light.place := placeLight;
 
-                touchLeft.place.init(Tuple{x=self.place.pos.x-5,y=self.place.pos.y+self.place.width,z=self.place.pos.z},45,7,3,1);
-                touchRight.place.init(Tuple{x=self.place.pos.x+self.place.length+0.05,y=self.place.pos.y+self.place.width+4.95,z=self.place.pos.z},315,7,3,1);
-                touchCenter.place.init(Tuple{x=self.place.pos.x,y=self.place.pos.y+21.8,z=self.place.pos.z},0,19,3,1);
+                ultrasonic.pose := poseUltrasonic;
 
-                light.place.init(Tuple{x=self.place.pos.x+1,y=self.place.pos.y+1,z=self.place.pos.z},0,2,2,2);
+                touchLeft.place.init(Tuple{x=self.place.pos.x-5,y=self.place.pos.y+self.place.width,z=self.place.pos.z},45,7,3,1,config);
+                touchRight.place.init(Tuple{x=self.place.pos.x+self.place.length+0.05,y=self.place.pos.y+self.place.width+4.95,z=self.place.pos.z},315,7,3,1,config);
+                touchCenter.place.init(Tuple{x=self.place.pos.x,y=self.place.pos.y+21.8,z=self.place.pos.z},0,19,3,1,config);
+
+                light.place.init(Tuple{x=self.place.pos.x+1,y=self.place.pos.y+1,z=self.place.pos.z},0,2,2,2,config);
+
+                ultrasonic.pose.initPose(Tuple{x=self.place.pos.x+5,y=self.place.pos.y+5,z=self.place.pos.z},self.place.angle,config);
             end
         action()
             begin
@@ -237,7 +247,7 @@ class Car < ActiveObject
                 end;
             end;
 
-        --Comprueba si el place p está interseccionando con alguno de los sensores de choque
+        --Comprueba si el place p está interseccionando con alguno de los sensores de choque (el sensor de luz y el de distancia no hace falta comprobarlos porque se encuentran dentro del place del coche)
         isIntersectingWithSensors(p: Place) : Boolean = (TouchSensor.allInstances->select(t | t.place.isIntersectingWith(p)))->isEmpty = false;
         --Comprueba si el place del coche y el de sus sensores se encuentra dentro del entorno
         isInEnvironment(e: Environment) : Boolean = self.place.isInEnvironment(e) and TouchSensor.allInstances()->select(t | self.touch->includes(t))->forAll(q | q.place.isInEnvironment(e));
@@ -259,6 +269,7 @@ class Car < ActiveObject
         end;
 
         --Devuelve el ángulo entre el centro del coche y el objetivo
+        -- REPASAR ESTOS 2 METODOS
         angleTo(objectivePos : Tuple (x:Real, y:Real, z:Real)) : Real = (vectorTo(Tuple{x=objectivePos.x,y=objectivePos.y,z=objectivePos.z}).x).acos()
         --Devuelve un vector normalizado que se origina en el centro del coche y acaba en el objetivo (sin contar el eje Z)
         vectorTo(objectivePos : Tuple (x:Real, y:Real, z:Real)) : Tuple (x: Real, y: Real) = Tuple{x=(objectivePos.x - self.place.center.x) /((objectivePos.x - self.place.center.x)*(objectivePos.x - self.place.center.x)+(objectivePos.y - self.place.center.y)*(objectivePos.y - self.place.center.y)).sqrt(), y=(objectivePos.y - self.place.center.y)/ ((objectivePos.x - self.place.center.x)*(objectivePos.x - self.place.center.x)+(objectivePos.y - self.place.center.y)*(objectivePos.y - self.place.center.y)).sqrt()}
@@ -300,7 +311,7 @@ end
 class LightSensor < Sensor
     attributes
         place : Place
-        lightValue : Integer    derived:45
+        lightValue : Integer    derive = self.colorBelow()
     operations
         --Devuelve true si debajo del sensor hay un objeto linea
         isLineBelow() : Boolean = Line.allInstances().place->select(p | p.isIntersectingWith(self.place))->isEmpty = false
@@ -315,33 +326,35 @@ class LightSensor < Sensor
 end
 
 class UltrasonicSensor < Sensor
-    --falta inicializarlo en el car.init()
     attributes
         pose : Pose
-        direction : Tuple(v1: Real, v2: Real) derive = Tuple{v1=pose.angle.cos(),v2=pose.angle.sin()}
+        direction : Tuple(v1: Real, v2: Real) derive = Tuple{v1=(pose.angle*self.car.config.DEG_TO_RAD).cos(),v2=(pose.angle*self.car.config.DEG_TO_RAD).sin()}
     operations
         --Devuelve la distancia entre el sensor y el obstáculo más cercano frente a él
         distanceForward() : Real
             begin
-                declare minDistance: Real, segment : Tuple(a1: Real, a2: Real, b1: Real, b2: Real), r : Tuple(t1:Real,t2:Real);
+                declare minDistance: Real;
 
                 for box in Box.allInstances() do
                     for place in box.place do
                         for seg in place.segments() do
-                            if (minDistance.oclIsUndefined() = true ) then
-                                --r := resolveRayIntersection(seg);
-                                result := seg.a1;
+                            if (minDistance.oclIsUndefined() = true and (self.resolveRayIntersection(seg)).t1 >= 0 and (self.resolveRayIntersection(seg)).t2 >= 0 and (self.resolveRayIntersection(seg)).t2 <= 1) then
+                                minDistance := (self.resolveRayIntersection(seg)).t1;
+                            else
+                                if (minDistance > (self.resolveRayIntersection(seg)).t1 and (self.resolveRayIntersection(seg)).t1 >= 0 and (self.resolveRayIntersection(seg)).t2 >= 0 and (self.resolveRayIntersection(seg)).t2 <= 1) then
+                                minDistance := (self.resolveRayIntersection(seg)).t1;
+                                end;
                             end;
                         end;
                     end;
                 end;
+                result := minDistance;
             end;
 
-
-        resolveRayIntersection (seg : Tuple(a1: Real, a2: Real, b1: Real, b2: Real)) : Tuple(t1: Real, t2: Real) = Tuple{
-            t1=(-self.pose.pos.x*seg.b2+seg.a1*seg.b2+self.pose.pos.x*seg.a2+seg.b1*self.pose.pos.y-seg.a2*seg.b1-seg.a1*self.pose.pos.y/self.direction.v1*seg.b2-self.direction.v1*seg.a2-seg.b1*self.direction.v2+seg.a1*self.direction.v2)
+        resolveRayIntersection (seg : Tuple(a1: Real, a2: Real, b1: Real, b2: Real)) : Tuple(t1: Real, t2: Real) = Tuple{ 
+            t1=((-self.pose.pos.x*seg.b2+seg.a1*seg.b2+self.pose.pos.x*seg.a2+seg.b1*self.pose.pos.y-seg.a2*seg.b1-seg.a1*self.pose.pos.y)/(self.direction.v1*seg.b2-self.direction.v1*seg.a2-seg.b1*self.direction.v2+seg.a1*self.direction.v2))
             ,
-            t2=(-seg.a1*self.direction.v2+self.pose.pos.x*self.direction.v2+seg.a2*self.direction.v1-self.pose.pos.y*self.direction.v1/seg.b1*self.direction.v2-seg.a1*self.direction.v2-seg.b2*self.direction.v1+seg.a2*self.direction.v1)}
+            t2=((-seg.a1*self.direction.v2+self.pose.pos.x*self.direction.v2+seg.a2*self.direction.v1-self.pose.pos.y*self.direction.v1)/(seg.b1*self.direction.v2-seg.a1*self.direction.v2-seg.b2*self.direction.v1+seg.a2*self.direction.v1))}
        
         
         
@@ -352,7 +365,7 @@ end
 
 composition UltrasonicSensorConnection between
     Car [1] role car
-    UltrasonicSensor [0..1] role sound
+    UltrasonicSensor [0..1] role ultrasonic
 end
 
 composition LightSensorConnection between
@@ -369,6 +382,10 @@ class Motor
     attributes
         speed : Real init: 10
     operations
+
+        isIntersecting() : Boolean = (Box.allInstances->select(p | p.place->select(r | self.car.place.isIntersectingWith(r))->isEmpty() = false)->isEmpty() = false)
+                    or
+                    (Box.allInstances->select(q | q.place->select(t | self.car.isIntersectingWithSensors(t))->isEmpty() = false)->isEmpty() = false);
 
         forward()
             begin
@@ -389,13 +406,18 @@ class Motor
                                         self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
                                         0
                 );
+                self.car.ultrasonic.pose.move(
+                                        self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).cos(),
+                                        self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
+                                        0
+                );
 
                 
 
-                --Este parece que funciona
+                --REPASAR LA COMPROBACION
 
                 --if  ((Box.allInstances->select(p | self.car.place.isIntersectingWith(p.place))->isEmpty() = false) 
-                if (Box.allInstances->select(p | p.place->select(r | self.car.place.isIntersectingWith(r))->isEmpty() = false)->isEmpty() = false)
+                if  (Box.allInstances->select(p | p.place->select(r | self.car.place.isIntersectingWith(r))->isEmpty() = false)->isEmpty() = false)
                     or
                 --(Box.allInstances->select(q | self.car.isIntersectingWithSensors(q.place)))->isEmpty()= false) 
                     (Box.allInstances->select(q | q.place->select(t | self.car.isIntersectingWithSensors(t))->isEmpty() = false)->isEmpty() = false)
@@ -410,6 +432,11 @@ class Motor
                                         0);
                     end;
                     self.car.light.place.move(
+                                        -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).cos(),
+                                        -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
+                                        0
+                    );
+                    self.car.ultrasonic.pose.move(
                                         -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).cos(),
                                         -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
                                         0
@@ -434,8 +461,11 @@ class Motor
                 self.car.light.place.move(
                                         -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).cos(),
                                         -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
-                                        0
-                    );
+                                        0);
+                self.car.ultrasonic.pose.move(
+                                        -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).cos(),
+                                        -self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
+                                        0);
 
                 --if  ((Box.allInstances->select(p | self.car.place.isIntersectingWith(p.place))->isEmpty() = false) 
                 if  (Box.allInstances->select(p | p.place->select(r | self.car.place.isIntersectingWith(r))->isEmpty() = false)->isEmpty() = false)
@@ -457,6 +487,11 @@ class Motor
                                         self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
                                         0
                     );
+                    self.car.ultrasonic.pose.move(
+                                        self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).cos(),
+                                        self.speed*self.car.clock.tickResolution*(self.car.place.angle * self.car.config.DEG_TO_RAD).sin(),
+                                        0
+                    );
                 end;
             end;
 
@@ -467,6 +502,8 @@ class Motor
                     TouchSensor.place.rotatePlace(self.speed*self.car.clock.tickResolution * (-1),self.car.place.center.x,self.car.place.center.y);
                 end;
                 self.car.light.place.rotatePlace(self.speed*self.car.clock.tickResolution * (-1),self.car.place.center.x,self.car.place.center.y);
+                self.car.ultrasonic.pose.moveTo(self.car.ultrasonic.pose.rotatePoint(self.car.ultrasonic.pose.pos,self.speed*self.car.clock.tickResolution * (-1),self.car.place.center.x,self.car.place.center.y));
+                self.car.ultrasonic.pose.rotate(self.speed*self.car.clock.tickResolution * (-1));
                 self.car.place.rotatePlace(self.speed*self.car.clock.tickResolution * (-1), self.car.place.center.x,self.car.place.center.y);
                 
                 --if  ((Box.allInstances->select(p | self.car.place.isIntersectingWith(p.place))->isEmpty() = false) 
@@ -481,16 +518,20 @@ class Motor
                         TouchSensor.place.rotatePlace(self.speed*self.car.clock.tickResolution,self.car.place.center.x,self.car.place.center.y);
                     end;
                     self.car.light.place.rotatePlace(self.speed*self.car.clock.tickResolution,self.car.place.center.x,self.car.place.center.y);
+                    self.car.ultrasonic.pose.moveTo(self.car.ultrasonic.pose.rotatePoint(self.car.ultrasonic.pose.pos,self.speed*self.car.clock.tickResolution,self.car.place.center.x,self.car.place.center.y));
+                    self.car.ultrasonic.pose.rotate(self.speed*self.car.clock.tickResolution);
                     self.car.place.rotatePlace(self.speed*self.car.clock.tickResolution, self.car.place.center.x,self.car.place.center.y);
                 --
                 end;
             end;
-        rotateAntiClockwise()
+        rotateCounterClockwise()
             begin
                 for TouchSensor in self.car.touch do
                     TouchSensor.place.rotatePlace(self.speed*self.car.clock.tickResolution,self.car.place.center.x,self.car.place.center.y);
                 end;
                 self.car.light.place.rotatePlace(self.speed*self.car.clock.tickResolution,self.car.place.center.x,self.car.place.center.y);
+                self.car.ultrasonic.pose.moveTo(self.car.ultrasonic.pose.rotatePoint(self.car.ultrasonic.pose.pos,self.speed*self.car.clock.tickResolution,self.car.place.center.x,self.car.place.center.y));
+                self.car.ultrasonic.pose.rotate(self.speed*self.car.clock.tickResolution);
                 self.car.place.rotatePlace(self.speed*self.car.clock.tickResolution, self.car.place.center.x,self.car.place.center.y);
                 --
                 --if  ((Box.allInstances->select(p | self.car.place.isIntersectingWith(p.place))->isEmpty() = false) 
@@ -505,6 +546,8 @@ class Motor
                         TouchSensor.place.rotatePlace(self.speed*self.car.clock.tickResolution * (-1),self.car.place.center.x,self.car.place.center.y);
                     end;
                     self.car.light.place.rotatePlace(self.speed*self.car.clock.tickResolution * (-1),self.car.place.center.x,self.car.place.center.y);
+                    self.car.ultrasonic.pose.moveTo(self.car.ultrasonic.pose.rotatePoint(self.car.ultrasonic.pose.pos,self.speed*self.car.clock.tickResolution * (-1),self.car.place.center.x,self.car.place.center.y));
+                    self.car.ultrasonic.pose.rotate(self.speed*self.car.clock.tickResolution * (-1));
                     self.car.place.rotatePlace(self.speed*self.car.clock.tickResolution * (-1), self.car.place.center.x,self.car.place.center.y);
                 --
                 end;
@@ -527,7 +570,7 @@ class Environment
     attributes
         size : Size
     operations
-    init(l: Real, w: Real, h: Real, conf: Config) 
+    init(l: Real, w: Real, h: Real, config: Config) 
         begin
             declare b1: Box, b2: Box, b3: Box, b4: Box, p1: Place, p2: Place, p3: Place, p4: Place ;
             self.size := new Size();
@@ -543,20 +586,21 @@ class Environment
             p3 := new Place();
             p4 := new Place();
 
-            p1.init(Tuple{x=0,y=0,z=0},0,l,0,0);
-            p2.init(Tuple{x=0,y=0,z=0},0,0,w,0);
-            p3.init(Tuple{x=0,y=w,z=0},0,l,0,0);
-            p4.init(Tuple{x=l,y=0,z=0},0,0,w,0);
+            p1.init(Tuple{x=0,y=0,z=0},0,l,0,0,config);
+            p2.init(Tuple{x=0,y=0,z=0},0,0,w,0,config);
+            p3.init(Tuple{x=0,y=w,z=0},0,l,0,0,config);
+            p4.init(Tuple{x=l,y=0,z=0},0,0,w,0,config);
 
             insert (b1,p1) into ElementPlaces;
             insert (b2,p2) into ElementPlaces;
             insert (b3,p3) into ElementPlaces;
             insert (b4,p4) into ElementPlaces;
 
-            insert (p1,conf) into positionConfig;
-            insert (p2,conf) into positionConfig;
-            insert (p3,conf) into positionConfig;
-            insert (p4,conf) into positionConfig;
+            insert (self,b1) into ElementOnTheFloor;
+            insert (self,b2) into ElementOnTheFloor;
+            insert (self,b3) into ElementOnTheFloor;
+            insert (self,b4) into ElementOnTheFloor;
+
         end
     isWithin (tuple1 : Tuple(x:Real,y:Real,z:Real)) : Boolean =     tuple1.x >= 0 and tuple1.x <= size.length
                                                                 and tuple1.y >= 0 and tuple1.y <= size.width

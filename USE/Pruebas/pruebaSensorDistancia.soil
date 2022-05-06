@@ -1,0 +1,10 @@
+!conf := new Config();
+!env := new Environment();
+!env.init(2000,1000,500,conf);
+!car := new Car();
+!car.init(conf);
+!p1 := new Place();
+!p1.init(Tuple{x=30,y=50,z=0},0,30,30,20,conf);
+!b1 := new Box();
+!insert (b1,p1) into ElementPlaces;
+!insert (env,b1) into ElementOnTheFloor;
