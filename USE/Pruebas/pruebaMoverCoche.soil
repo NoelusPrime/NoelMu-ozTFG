@@ -1,0 +1,11 @@
+!conf := new Config();
+!env := new Environment();
+!env.init(2000,1000,500,conf);
+!car := new Car();
+!car.init(30,30,conf);
+--!p1 := new Place();
+--!p1.init(Tuple{x=90,y=60,z=0},0,20,5,20,conf);
+--!b1 := new Box();
+--!insert (b1,p1) into ElementPlaces;
+--!insert (env,b1) into ElementOnTheFloor;
+!for i in Sequence{1..50} do car.clock.tick() end
