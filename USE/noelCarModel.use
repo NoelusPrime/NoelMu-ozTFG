@@ -795,3 +795,140 @@ class Snapshot
                 self.time := time;
             end
 end
+
+-- Tests
+
+class Tester
+    operations
+        testForward()
+            begin
+            ----------------------------------------------------------------
+                declare environment: Environment, car: Car, config: Config;
+
+                config := new Config();
+                environment := new Environment();
+                car := new Car();
+
+                config := new Config();
+                environment.init(1000,1000,100,config);
+                car.init(50,50,environment,config);
+            ----------------------------------------------------------------
+                car.motor.forward();
+            end
+            post testForwardCorrect: true;
+        
+        testBackward()
+            begin
+            ----------------------------------------------------------------
+                declare environment: Environment, car: Car, config: Config;
+
+                config := new Config();
+                environment := new Environment();
+                car := new Car();
+
+                config := new Config();
+                environment.init(1000,1000,100,config);
+                car.init(50,50,environment,config);
+            ----------------------------------------------------------------
+            end
+            post testBackward: true;
+        
+        testRotateClockwise()
+            begin
+            ----------------------------------------------------------------
+                declare environment: Environment, car: Car, config: Config;
+
+                config := new Config();
+                environment := new Environment();
+                car := new Car();
+
+                config := new Config();
+                environment.init(1000,1000,100,config);
+                car.init(50,50,environment,config);
+            ----------------------------------------------------------------
+            end
+            post testRotateClockwise: true;
+        
+        testRotateCounterClockwise()
+            begin
+            ----------------------------------------------------------------
+                declare environment: Environment, car: Car, config: Config;
+
+                config := new Config();
+                environment := new Environment();
+                car := new Car();
+
+                config := new Config();
+                environment.init(1000,1000,100,config);
+                car.init(50,50,environment,config);
+            ----------------------------------------------------------------
+            end
+            post testRotateCounterClockwise: true;
+
+        testGoTo()
+            begin
+            ----------------------------------------------------------------
+                declare environment: Environment, car: Car, config: Config;
+
+                config := new Config();
+                environment := new Environment();
+                car := new Car();
+
+                config := new Config();
+                environment.init(1000,1000,100,config);
+                car.init(50,50,environment,config);
+            ----------------------------------------------------------------
+            end
+            post testGoTo: true;
+
+        testUltrasonicSensor()
+            begin
+            ----------------------------------------------------------------
+                declare environment: Environment, car: Car, config: Config;
+
+                config := new Config();
+                environment := new Environment();
+                car := new Car();
+
+                config := new Config();
+                environment.init(1000,1000,100,config);
+                car.init(50,50,environment,config);
+            ----------------------------------------------------------------
+            end
+            post testUltrasonicSensor : true;
+
+        testTouchSensor()
+            begin
+            ----------------------------------------------------------------
+                declare environment: Environment, car: Car, config: Config;
+
+                config := new Config();
+                environment := new Environment();
+                car := new Car();
+
+                config := new Config();
+                environment.init(1000,1000,100,config);
+                car.init(50,50,environment,config);
+            ----------------------------------------------------------------
+            end
+            post testTouchSensor: true;
+
+        testLightSensor()
+            begin
+            ----------------------------------------------------------------
+                declare environment: Environment, car: Car, config: Config;
+
+                config := new Config();
+                environment := new Environment();
+                car := new Car();
+
+                config := new Config();
+                environment.init(1000,1000,100,config);
+                car.init(50,50,environment,config);
+            ----------------------------------------------------------------
+            end
+            post testLightSensor: true;
+end
+
+
+
